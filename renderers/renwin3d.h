@@ -41,7 +41,7 @@ private:
     void UpdateViewAngles();
     void UpdateViewMatrix();
     int  GetSelectedTriangleIndex(int x, int y);
-    void RefreshPickingTexture();
+    void DrawModelFaceColors();
 
     enum
     { CAM_FLYOVER,

@@ -63,6 +63,9 @@ void CRenWin3D::initializeGL()
     glm::vec4 ambi = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
     glLightfv(GL_LIGHT1, GL_DIFFUSE, &diff[0]);
     glLightfv(GL_LIGHT1, GL_AMBIENT, &ambi[0]);
+
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_COLOR_ARRAY);
 }
 
 void CRenWin3D::ToggleLighting(bool checked)
@@ -609,8 +612,25 @@ void CRenWin3D::UpdateViewMatrix()
 
 int CRenWin3D::GetSelectedTriangleIndex(int x, int y)
 {
+    if(!m_model)
+        return -1;
+
     if (!m_pickTexValid) {
-        RefreshPickingTexture();
+        makeCurrent();
+
+        QOpenGLFramebufferObject fbo(m_width, m_height, QOpenGLFramebufferObject::Depth, GL_TEXTURE_2D);
+        if(!fbo.isValid())
+        {
+            return -1;
+        }
+        fbo.bind();
+
+        DrawModelFaceColors();
+
+        m_pickingTexture = fbo.toImage();
+        fbo.release();
+
+        doneCurrent();
         m_pickTexValid = true;
     }
 
@@ -626,22 +646,33 @@ int CRenWin3D::GetSelectedTriangleIndex(int x, int y)
     return -1;
 }
 
-void CRenWin3D::RefreshPickingTexture()
+void CRenWin3D::DrawModelFaceColors()
 {
-    if(!m_model)
-        return;
+    //prepare vertex color array, use the same color for each of triangle's vertices
+    const auto &faces = m_model->GetTriangles();
+    const int vertex_count = faces.size() * 3;
 
-    makeCurrent();
-
-    QOpenGLFramebufferObject fbo(m_width, m_height, QOpenGLFramebufferObject::Depth, GL_TEXTURE_2D);
-    if(!fbo.isValid())
-    {
-        return;
+    std::vector<int> colors;
+    colors.reserve(vertex_count);
+    const int color_step = 1;
+    int rgba_color = 0;
+    for (int i = 0; i < vertex_count / 3; i++) {
+        colors.push_back(rgba_color);
+        colors.push_back(rgba_color);
+        colors.push_back(rgba_color);
+        rgba_color += color_step;
     }
-    fbo.bind();
+
+    //prepare indices
+    std::vector<int> indices;
+    indices.reserve(vertex_count);
+    for(const glm::uvec4 &t : faces) {
+        indices.push_back(t[0]);
+        indices.push_back(t[1]);
+        indices.push_back(t[2]);
+    }
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glMatrixMode(GL_MODELVIEW);
@@ -651,41 +682,17 @@ void CRenWin3D::RefreshPickingTexture()
     glDisable(GL_LIGHTING);
     glDisable(GL_TEXTURE_2D);
 
-    glBegin(GL_TRIANGLES);
+    const auto &vert = m_model->GetVertices();
+    glVertexPointer(3, GL_FLOAT, 0, vert.data());
+    glColorPointer(4, GL_UNSIGNED_BYTE, 0, colors.data());
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
 
-    const std::vector<glm::vec3> &vert = m_model->GetVertices();
-
-    int i = 0;
-    for(const glm::uvec4 &t : m_model->GetTriangles())
-    {
-        const glm::vec3 &vertex1 = vert[t[0]];
-        const glm::vec3 &vertex2 = vert[t[1]];
-        const glm::vec3 &vertex3 = vert[t[2]];
-
-        int r = i & 0x0000FF;
-        int g = i & 0x00FF00; g >>= 8;
-        int b = i & 0xFF0000; b >>= 16;
-
-        glColor3ub(r, g, b);
-        glVertex3f(vertex1[0], vertex1[1], vertex1[2]);
-        glVertex3f(vertex2[0], vertex2[1], vertex2[2]);
-        glVertex3f(vertex3[0], vertex3[1], vertex3[2]);
-        i++;
-    }
-
-    glEnd();
 
     if(m_lighting)
         glEnable(GL_LIGHTING);
     glEnable(GL_TEXTURE_2D);
 
     glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
-
-    m_pickingTexture = fbo.toImage();
-
-    fbo.release();
-
-    doneCurrent();
 }
 
 void CRenWin3D::ZoomFit()
