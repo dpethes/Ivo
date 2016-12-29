@@ -20,6 +20,7 @@ void CRenWin3D::SetModel(CMesh *mdl)
 {
     m_model = mdl;
     ZoomFit();
+    m_pickTriIndices.clear();
 }
 
 CRenWin3D::~CRenWin3D()
@@ -176,13 +177,13 @@ void CRenWin3D::paintGL()
         glLoadIdentity();
         glMultMatrixf(&m_viewMatrix[0][0]);
 
-        glBegin(GL_TRIANGLES);
-
         glLightfv(GL_LIGHT1, GL_POSITION, &m_cameraPosition[0]);
 
         const std::vector<glm::vec3> &vert = m_model->GetVertices();
         const std::vector<glm::vec2> &uvs = m_model->GetUVCoords();
         const std::vector<glm::vec3> &norms = m_model->GetNormals();
+
+        glBegin(GL_TRIANGLES);
 
         int i = 0;
         for(const glm::uvec4 &t : m_model->GetTriangles())
