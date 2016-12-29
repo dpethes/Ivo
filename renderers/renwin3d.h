@@ -40,6 +40,7 @@ private:
     void DrawAxis();
     void UpdateViewAngles();
     void UpdateViewMatrix();
+    int  GetSelectedTriangleIndex(int x, int y);
     void RefreshPickingTexture();
 
     enum

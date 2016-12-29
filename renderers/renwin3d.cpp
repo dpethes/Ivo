@@ -503,25 +503,17 @@ bool CRenWin3D::event(QEvent *e)
             {
                 case EM_POLYPAINT:
                 {
-                    RefreshPickingTexture();
-                    QPoint p = me->pos();
-
-                    if(p.x() < 0 || p.y() < 0 || p.x() >= (int)m_width || p.y() >= (int)m_height)
+                    if (!mouseKeyFlags)
                         break;
 
-                    QColor col = m_pickingTexture.pixelColor(p.x(), p.y());
-
-                    int index = 0;
-                    index |= col.red();
-                    index |= col.green() << 8;
-                    index |= col.blue() << 16;
-
-                    if(index < 0xFFFFFF)
+                    int index = GetSelectedTriangleIndex(me->x(), me->y());
+                    if(index >= 0)
                     {
                         if(mouseKeyFlags & KEY_LMB)
                         {
                             m_pickTriIndices.insert(index);
-                        } else if(mouseKeyFlags & KEY_RMB)
+                        }
+                        else if(mouseKeyFlags & KEY_RMB)
                         {
                             auto foundPos = m_pickTriIndices.find(index);
                             if(foundPos != m_pickTriIndices.end())
@@ -615,12 +607,27 @@ void CRenWin3D::UpdateViewMatrix()
     update();
 }
 
+int CRenWin3D::GetSelectedTriangleIndex(int x, int y)
+{
+    if (!m_pickTexValid) {
+        RefreshPickingTexture();
+        m_pickTexValid = true;
+    }
+
+    if( (0 <= x) && (x < m_pickingTexture.width()) && (0 <= y) && (y < m_pickingTexture.height()) )
+    {
+        QColor col = m_pickingTexture.pixelColor(x, y);
+
+        int index = (col.blue() << 16) | (col.green() << 8) | col.red();
+        if (index != 0xFFFFFF)  //clear color
+            return index;
+    }
+
+    return -1;
+}
+
 void CRenWin3D::RefreshPickingTexture()
 {
-    if(m_pickTexValid)
-        return;
-    m_pickTexValid = true;
-
     if(!m_model)
         return;
 
