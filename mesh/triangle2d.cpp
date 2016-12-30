@@ -204,12 +204,13 @@ bool CMesh::STriangle2D::PointInside(const glm::vec2 &point) const
 
 bool CMesh::STriangle2D::PointIsNearEdge(const glm::vec2 &point, const int &i, float &score) const
 {
-    float dv[2] = { glm::distance(point, m_vtxRT[i]),
-                    glm::distance(point, m_vtxRT[(i+1)%3]) };
+    auto v0 = m_vtxRT[i];
+    auto v1 = m_vtxRT[(i+1)%3];
+    float dv[2] = { glm::distance(point, v0), glm::distance(point, v1) };
 
     if(m_edgeLen[i]*1.01f >= dv[0]+dv[1])
     {
-        score = glm::abs(((m_vtxRT[(i+1)%3].x-m_vtxRT[i].x)*(point.y-m_vtxRT[i].y)-(m_vtxRT[(i+1)%3].y-m_vtxRT[i].y)*(point.x-m_vtxRT[i].x))/m_edgeLen[i]); //distance to edge
+        score = glm::abs(((v1.x-v0.x)*(point.y-v0.y)-(v1.y-v0.y)*(point.x-v0.x))/m_edgeLen[i]); //distance to edge
         return true;
     }
     return false;
