@@ -41,7 +41,8 @@ SOURCES += main.cpp\
     pdo/pdotools.cpp \
     ivo/ivoloader.cpp \
     io/saferead.cpp \
-    renderers/rendererclassic.cpp
+    renderers/rendererclassic.cpp \
+    renderers/renderex.cpp
 
 HEADERS  += \
     mesh/mesh.h \
@@ -56,7 +57,8 @@ HEADERS  += \
     renderers/renwin.h \
     pdo/pdotools.h \
     io/saferead.h \
-    renderers/rendererclassic.h
+    renderers/rendererclassic.h \
+    renderers/renderex.h
 
 FORMS    += interface/mainwindow.ui \
     interface/settingswindow.ui \
