@@ -7,13 +7,16 @@
 #include "renwin2d.h"
 #include "renderex.h"
 
-Renderer2Dex::Renderer2Dex()
-{
-}
+#include "nanovg/nanovg.h"
+#include <QOpenGLFunctions_2_0>
+#define NANOVG_GL2_IMPLEMENTATION
+#include "nanovg/nanovg_gl.h"
 
-Renderer2Dex::~Renderer2Dex()
-{
-}
+struct NVGcontext* vg;
+
+Renderer2Dex::Renderer2Dex() {}
+
+Renderer2Dex::~Renderer2Dex() {}
 
 /*
 void Renderer2Dex::SetModel(CMesh *mdl)
@@ -32,6 +35,11 @@ void Renderer2Dex::SetModel(CMesh *mdl)
 
 void Renderer2Dex::Init()
 {
+    QOpenGLFunctions_2_0 *gl = new QOpenGLFunctions_2_0;
+    gl->initializeOpenGLFunctions();
+    qgl = gl;
+    vg = nvgCreateGL2(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
+
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_TEXTURE_2D);

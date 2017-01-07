@@ -45,7 +45,8 @@ SOURCES += main.cpp\
     renderers/renderlegacy2d.cpp \
     renderers/renderbase3d.cpp \
     renderers/renderbase2d.cpp \
-    renderers/renderex.cpp    
+    renderers/renderex.cpp \    
+    renderers/nanovg/nanovg.c
 
 HEADERS  += \
     mesh/mesh.h \
@@ -64,7 +65,13 @@ HEADERS  += \
     renderers/renderbase3d.h \
     renderers/renderbase2d.h \
     renderers/renderlegacy2d.h \
-    renderers/renderex.h    
+    renderers/renderex.h \    
+    renderers/nanovg/fontstash.h \
+    renderers/nanovg/nanovg.h \
+    renderers/nanovg/nanovg_gl.h \
+    renderers/nanovg/nanovg_gl_utils.h \
+    renderers/nanovg/stb_image.h \
+    renderers/nanovg/stb_truetype.h
 
 FORMS    += interface/mainwindow.ui \
     interface/settingswindow.ui \
