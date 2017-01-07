@@ -246,11 +246,9 @@ void Renderer2Dex::DrawParts() const
 
 void Renderer2Dex::DrawFlaps() const
 {
-    if(m_texFolds)
-        m_texFolds->bind();
+    nvgBeginFrame(vg, m_width, m_height, 1);
+    SetupNvgView();
 
-    glBegin(GL_QUADS);
-    glColor3f(1.0f, 1.0f, 1.0f); //base color
     for(const CMesh::SEdge &e : m_model->GetEdges())
     {
         if(!e.IsSnapped())
@@ -273,10 +271,8 @@ void Renderer2Dex::DrawFlaps() const
             }
         }
     }
-    glEnd();
 
-    if(m_texFolds && m_texFolds->isBound())
-        m_texFolds->release();
+    nvgEndFrame(vg);
 }
 
 void Renderer2Dex::DrawGroups() const
@@ -361,63 +357,34 @@ void Renderer2Dex::DrawEdges() const
         m_texFolds->release();
 }
 
-void Renderer2Dex::RenderFlap(void *tr, int edge) const
+//flaps are not filled - valid flap is on a sheet, so it'll be white
+void Renderer2Dex::RenderFlap(CMesh::STriangle2D *tr, int edge) const
 {
-    const CMesh::STriangle2D& t = *static_cast<CMesh::STriangle2D*>(tr);
+    const CMesh::STriangle2D& t = *tr;
     const glm::vec2 &v1 = t[edge];
     const glm::vec2 &v2 = t[(edge+1)%3];
     const glm::vec2 vN = t.GetNormal(edge) * 0.5f;
 
-    float x[4];
-    float y[4];
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, v1.x, v1.y);
+
     if(t.IsFlapSharp(edge))
     {
-        x[0] = v1.x;
-        y[0] = v1.y;
-        x[1] = 0.5f*v1.x + 0.5f*v2.x + vN.x;
-        y[1] = 0.5f*v1.y + 0.5f*v2.y + vN.y;
-        x[2] = v2.x;
-        y[2] = v2.y;
-        x[3] = 0.5f*v1.x + 0.5f*v2.x;
-        y[3] = 0.5f*v1.y + 0.5f*v2.y;
+        float bx = 0.5f*v1.x + 0.5f*v2.x + vN.x;
+        float by = 0.5f*v1.y + 0.5f*v2.y + vN.y;
+        nvgLineTo(vg, bx, by);
     } else {
-        x[0] = v1.x;
-        y[0] = v1.y;
-        x[1] = 0.9f*v1.x + 0.1f*v2.x + vN.x;
-        y[1] = 0.9f*v1.y + 0.1f*v2.y + vN.y;
-        x[2] = 0.1f*v1.x + 0.9f*v2.x + vN.x;
-        y[2] = 0.1f*v1.y + 0.9f*v2.y + vN.y;
-        x[3] = v2.x;
-        y[3] = v2.y;
+        float bx = 0.9f*v1.x + 0.1f*v2.x + vN.x;
+        float by = 0.9f*v1.y + 0.1f*v2.y + vN.y;
+        float cx = 0.1f*v1.x + 0.9f*v2.x + vN.x;
+        float cy = 0.1f*v1.y + 0.9f*v2.y + vN.y;
+        nvgLineTo(vg, bx, by);
+        nvgLineTo(vg, cx, cy);
     }
-
-    static const glm::mat2 rotMx90deg = glm::mat2( 0, 1,
-                                                  -1, 0);
-    const float normalScaler = 0.015f * CSettings::GetInstance().GetLineWidth();
-
-    //render inner part of flap
-    glTexCoord2f(0.0f, 0.8f); //white
-    glVertex2f(x[0], y[0]);
-    glVertex2f(x[1], y[1]);
-    glVertex2f(x[2], y[2]);
-    glVertex2f(x[3], y[3]);
-
-    //render edges of flap
-    glTexCoord2f(0.0f, 0.1f); //black
-    for(int i=0; i<4; i++)
-    {
-        int i2 = (i+1)%4;
-        const float& x1 = x[i];
-        const float& x2 = x[i2];
-        const float& y1 = y[i];
-        const float& y2 = y[i2];
-        const glm::vec2 eN = glm::normalize(rotMx90deg * glm::vec2(x2-x1, y2-y1)) * normalScaler;
-
-        glVertex2f(x1 - eN.x, y1 - eN.y);
-        glVertex2f(x1 + eN.x, y1 + eN.y);
-        glVertex2f(x2 + eN.x, y2 + eN.y);
-        glVertex2f(x2 - eN.x, y2 - eN.y);
-    }
+    nvgLineTo(vg, v2.x, v2.y);
+    nvgStrokeColor(vg, nvgRGB(0,0,0));
+    nvgStrokeWidth(vg, 0.05);
+    nvgStroke(vg);
 }
 
 void Renderer2Dex::RenderEdge(void *tr, int edge, int foldType) const
