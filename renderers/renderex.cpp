@@ -44,6 +44,19 @@ void Renderer2Dex::RecalcProjection()
     glLoadIdentity();
     const float hwidth = m_cameraPosition[2] * float(m_width)/float(m_height);
     glOrtho(-hwidth, hwidth, -m_cameraPosition[2], m_cameraPosition[2], 0.1f, 2000.0f);
+
+    m_scale = m_height/m_cameraPosition[2];  // -> W/(Z * W/H);
+}
+
+float Renderer2Dex::SetupNvgView() const
+{
+    //coordinate system: center & flip vertical
+    nvgTranslate(vg, m_width/2, m_height/2);
+    nvgScale(vg, 1, -1);
+
+    //camera: scale & translate
+    nvgScale(vg, m_scale/2, m_scale/2);
+    nvgTranslate(vg, m_cameraPosition[0], m_cameraPosition[1]);
 }
 
 void Renderer2Dex::PreDraw() const
@@ -180,16 +193,8 @@ void Renderer2Dex::DrawSelection(const SSelectionInfo& sinfo) const
 void Renderer2Dex::DrawPaperSheet(const glm::vec2 &position, const glm::vec2 &size) const
 {
     nvgBeginFrame(vg, m_width, m_height, 1);
-
-    //coordinate system: center & flip vertical
-    nvgTranslate(vg, m_width/2, m_height/2);
-    nvgScale(vg, 1, -1);
-
-    //camera: scale & translate
-    float scale = m_height/m_cameraPosition[2];  // -> W/(Z * W/H);
-    nvgScale(vg, scale/2, scale/2);
-    nvgTranslate(vg, m_cameraPosition[0], m_cameraPosition[1]);
-    float unit = 1/scale;
+    SetupNvgView();
+    const float unit = 1/m_scale;
 
     //shadow
     const float shadowOffset = 1;
