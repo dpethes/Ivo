@@ -12,26 +12,9 @@
 #define NANOVG_GL2_IMPLEMENTATION
 #include "nanovg/nanovg_gl.h"
 
-struct NVGcontext* vg;
-
 Renderer2Dex::Renderer2Dex() {}
 
 Renderer2Dex::~Renderer2Dex() {}
-
-/*
-void Renderer2Dex::SetModel(CMesh *mdl)
-{
-    m_model = mdl;
-
-    for(auto it=m_model->textures.begin(); it!=m_model->textures.end(); it++)
-    {
-        if(it->second != nullptr)
-        {
-            LoadTexture(it->second.get(), it->first);
-        }
-    }
-}*/
-
 
 void Renderer2Dex::Init()
 {
@@ -196,30 +179,36 @@ void Renderer2Dex::DrawSelection(const SSelectionInfo& sinfo) const
 
 void Renderer2Dex::DrawPaperSheet(const glm::vec2 &position, const glm::vec2 &size) const
 {
-    glBegin(GL_QUADS);
-        //shadow
-        glColor3f(0.2f, 0.2f, 0.2f);
-        glVertex2f(position.x+0.5f, position.y-0.5f);
-        glVertex2f(position.x+0.5f+size.x, position.y-0.5f);
-        glVertex2f(position.x+0.5f+size.x, position.y+size.y-0.5f);;
-        glVertex2f(position.x+0.5f, position.y+size.y-0.5f);
+    nvgBeginFrame(vg, m_width, m_height, 1);
 
-        //sheet
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glVertex2f(position.x, position.y);
-        glVertex2f(position.x+size.x, position.y);
-        glVertex2f(position.x+size.x, position.y+size.y);
-        glVertex2f(position.x, position.y+size.y);
-    glEnd();
+    //coordinate system: center & flip vertical
+    nvgTranslate(vg, m_width/2, m_height/2);
+    nvgScale(vg, 1, -1);
 
-    //paper edge
-    glBegin(GL_LINE_LOOP);
-        glColor3f(0.0f, 0.0f, 0.0f);
-        glVertex2f(position.x, position.y);
-        glVertex2f(position.x+size.x, position.y);
-        glVertex2f(position.x+size.x, position.y+size.y);
-        glVertex2f(position.x, position.y+size.y);
-    glEnd();
+    //camera: scale & translate
+    float scale = m_height/m_cameraPosition[2];  // -> W/(Z * W/H);
+    nvgScale(vg, scale/2, scale/2);
+    nvgTranslate(vg, m_cameraPosition[0], m_cameraPosition[1]);
+    float unit = 1/scale;
+
+    //shadow
+    const float shadowOffset = 1;
+    nvgBeginPath(vg);
+    nvgRect(vg, position.x+shadowOffset, position.y-shadowOffset,
+                size.x, size.y);
+    nvgFillColor(vg, nvgRGBf(0.3,0.3,0.3));
+    nvgFill(vg);
+
+    //page
+    nvgBeginPath(vg);
+    nvgRect(vg, position.x, position.y, size.x, size.y);
+    nvgFillColor(vg, nvgRGB(255,255,255));
+    nvgStrokeColor(vg, nvgRGB(0,0,0));
+    nvgStrokeWidth(vg, 1.5*unit);
+    nvgFill(vg);
+    nvgStroke(vg);
+
+    nvgEndFrame(vg);
 }
 
 void Renderer2Dex::DrawScene() const

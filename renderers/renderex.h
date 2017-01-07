@@ -43,6 +43,8 @@ private:
     void    UnbindTexture() const;
 
     mutable int m_boundTextureID = -1;
+
+    struct NVGcontext* vg;
 };
 
 #endif // RENDERER_EX_H
