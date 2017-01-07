@@ -58,7 +58,8 @@ void Renderer3Dex::ResizeView(int w, int h)
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glm::mat4 projMx = glm::perspective(glm::radians(m_fovy), (static_cast<float>(w))/(static_cast<float>(h)), 0.1f, 3000.0f);
+    float aspect = 1.0*w/h;
+    glm::mat4 projMx = glm::perspective(glm::radians(fovy), aspect, 0.1f, 3000.0f);
     glMultMatrixf(&projMx[0][0]);
 }
 
