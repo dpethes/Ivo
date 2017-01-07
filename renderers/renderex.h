@@ -7,53 +7,42 @@
 #include <unordered_set>
 #include <QImage>
 #include <QOpenGLTexture>
+#include "renderbase2d.h"
 
 class CMesh;
 
-class Renderer3Dex
+class Renderer2Dex : public IRenderer2D
 {
 public:
-    void SetModel(CMesh *mdl);
-    void Init();
-    void Init2D();
-    void ResizeView(int w, int h);
-    void ToggleLighting(bool enable);
+    Renderer2Dex();
+    virtual ~Renderer2Dex();
 
-    void DrawModel(std::unordered_set<int> pickTriIndices);
-    void DrawBackground();
-    void DrawGrid(glm::vec3 cameraPosition);
-    void DrawAxis(glm::mat4 rotMx);
-    void UpdateViewMatrix(glm::mat4 viewMatrix);
-    void SetLightPosition(glm::vec3 position);
+    void    Init() override;
+    void    ResizeView(int w, int h) override;
 
-    QImage* RefreshPickingTexture();
+    void    PreDraw() const override;
+    void    DrawScene() const override;
+    void    DrawSelection(const SSelectionInfo& sinfo) const override;
+    void    DrawPaperSheet(const glm::vec2 &position, const glm::vec2 &size) const override;
 
-    void DrawFlaps() const;
-    void DrawEdges();
-    void DrawPaperSheet(glm::vec2 m_position, glm::vec2 m_widthHeight);
-    void DrawGroups();
+    void    RecalcProjection() override;
 
-    //private
-    void LoadTexture(QImage *img, unsigned index);
-    void BindTexture(unsigned id);
-    void UnbindTexture();
-    void CreateFoldTextures();
-    void RenderFlap(void *tr, int edge) const;
-    void RenderEdge(void *tr, int edge, int foldType) const;
+    QImage  DrawImageFromSheet(const glm::vec2 &pos) const override;
 
-    CMesh* m_model;
-    std::unordered_map<unsigned, std::unique_ptr<QOpenGLTexture>> m_textures;
-    int m_boundTextureID;
-    std::unique_ptr<QOpenGLTexture> m_texFolds;
+    void    ClearTextures() override;
 
-    glm::mat4       m_viewMatrix = glm::mat4(1);
-    float           m_fovy = 70.0f;
-    glm::vec4       m_lightPosition;
-    bool            m_lighting = true;
-    QImage          m_pickingTexture;
-    bool            m_pickTexValid = false;
-    unsigned        m_width = 800;
-    unsigned        m_height = 600;
+private:
+    void    DrawParts() const;
+    void    DrawFlaps() const;
+    void    DrawGroups() const;
+    void    DrawEdges() const;
+    void    RenderFlap(void *tr, int edge) const;
+    void    RenderEdge(void *tr, int edge, int foldType) const;
+
+    void    BindTexture(unsigned id) const;
+    void    UnbindTexture() const;
+
+    mutable int m_boundTextureID = -1;
 };
 
 #endif // RENDERER_EX_H

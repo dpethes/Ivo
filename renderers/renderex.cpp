@@ -1,15 +1,22 @@
-#include <glm/gtc/matrix_transform.hpp>
 #include <QOpenGLWidget>
 #include <QOpenGLFramebufferObject>
-#include <QEvent>
-#include <QMouseEvent>
-#include <chrono>
-#include "settings/settings.h"
+#include <stdexcept>
+#include "renderlegacy2d.h"
 #include "mesh/mesh.h"
-
+#include "settings/settings.h"
+#include "renwin2d.h"
 #include "renderex.h"
 
-void Renderer3Dex::SetModel(CMesh *mdl)
+Renderer2Dex::Renderer2Dex()
+{
+}
+
+Renderer2Dex::~Renderer2Dex()
+{
+}
+
+/*
+void Renderer2Dex::SetModel(CMesh *mdl)
 {
     m_model = mdl;
 
@@ -20,27 +27,10 @@ void Renderer3Dex::SetModel(CMesh *mdl)
             LoadTexture(it->second.get(), it->first);
         }
     }
-}
+}*/
 
-void Renderer3Dex::Init()
-{
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-    glEnable(GL_MULTISAMPLE);
-    glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
-    glShadeModel(GL_FLAT);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT1);
-    glShadeModel(GL_SMOOTH);
-    glm::vec4 diff = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-    glm::vec4 ambi = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, &diff[0]);
-    glLightfv(GL_LIGHT1, GL_AMBIENT, &ambi[0]);
-}
 
-void Renderer3Dex::Init2D()
+void Renderer2Dex::Init()
 {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -50,338 +40,209 @@ void Renderer3Dex::Init2D()
     CreateFoldTextures();
 }
 
-void Renderer3Dex::ResizeView(int w, int h)
+void Renderer2Dex::ResizeView(int w, int h)
 {
-    m_pickTexValid = false;
     m_width = w;
     m_height = h;
     glViewport(0, 0, w, h);
+}
+
+void Renderer2Dex::RecalcProjection()
+{
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    float aspect = 1.0*w/h;
-    glm::mat4 projMx = glm::perspective(glm::radians(fovy), aspect, 0.1f, 3000.0f);
-    glMultMatrixf(&projMx[0][0]);
+    const float hwidth = m_cameraPosition[2] * float(m_width)/float(m_height);
+    glOrtho(-hwidth, hwidth, -m_cameraPosition[2], m_cameraPosition[2], 0.1f, 2000.0f);
 }
 
-void Renderer3Dex::ToggleLighting(bool enable)
-{
-    m_lighting = enable;
-    if(m_lighting)
-    {
-        glEnable(GL_LIGHTING);
-    } else {
-        glDisable(GL_LIGHTING);
-    }
-}
-
-void Renderer3Dex::DrawAxis(glm::mat4 rotMx)
-{
-    glDisable(GL_LIGHTING);
-    glClear(GL_DEPTH_BUFFER_BIT);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(-2.0f, 2.0f, -1.5f, 1.5f, 0.1f, 100.0f);
-
-    glm::vec4 vecX(0.1f, 0.0f, 0.0f, 1.0f);
-    glm::vec4 vecY(0.0f, 0.1f, 0.0f, 1.0f);
-    glm::vec4 vecZ(0.0f, 0.0f, 0.1f, 1.0f);
-    vecX = rotMx * vecX;
-    vecY = rotMx * vecY;
-    vecZ = rotMx * vecZ;
-
-    glTranslatef(-1.9f, -1.4f, -20.0f);
-
-    glColor3f(1.0f, 0.0f, 0.0f);
-    glBegin(GL_LINES);
-        glVertex3f(0.0f, 0.0f, 0.0f);
-        glVertex3f(vecX.x, vecX.y, vecX.z);
-    glEnd();
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glBegin(GL_LINES);
-        glVertex3f(0.0f, 0.0f, 0.0f);
-        glVertex3f(vecY.x, vecY.y, vecY.z);
-    glEnd();
-    glColor3f(0.0f, 0.0f, 1.0f);
-    glBegin(GL_LINES);
-        glVertex3f(0.0f, 0.0f, 0.0f);
-        glVertex3f(vecZ.x, vecZ.y, vecZ.z);
-    glEnd();
-
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-
-    if(m_lighting)
-    {
-        glEnable(GL_LIGHTING);
-    }
-    glColor3f(1.0f, 1.0f, 1.0f);
-}
-
-void Renderer3Dex::DrawGrid(glm::vec3 cameraPosition)
-{
-    glDisable(GL_LIGHTING);
-    glColor3f(0.0f, 0.0f, 0.0f);
-    glBegin(GL_LINES);
-        glVertex3f(cameraPosition.x + 50.0f, 0.0f, 0.0f);
-        glVertex3f(cameraPosition.x - 50.0f, 0.0f, 0.0f);
-
-        glVertex3f(0.0f, 0.0f, cameraPosition.z + 50.0f);
-        glVertex3f(0.0f, 0.0f, cameraPosition.z - 50.0f);
-    glEnd();
-
-    int baseX = (int)cameraPosition.x;
-    int baseZ = (int)cameraPosition.z;
-
-    glColor3f(0.4f, 0.4f, 0.4f);
-    glBegin(GL_LINES);
-        for(int i=-50; i<50; ++i)
-        {
-            glVertex3f(baseX+i, 0.0f, cameraPosition.z + 50.0f);
-            glVertex3f(baseX+i, 0.0f, cameraPosition.z - 50.0f);
-        }
-        for(int i=-50; i<50; ++i)
-        {
-            glVertex3f(cameraPosition.x + 50.0f, 0.0f, baseZ+i);
-            glVertex3f(cameraPosition.x - 50.0f, 0.0f, baseZ+i);
-        }
-    glEnd();
-}
-
-void Renderer3Dex::DrawBackground()
+void Renderer2Dex::PreDraw() const
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(-1.0f, 1.0f, -1.0f, 1.0f, 0.1f, 10.0f);
-
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    if(m_lighting)
-        glDisable(GL_LIGHTING);
-
-    glBegin(GL_QUADS);
-    glColor3ub(214, 237, 255);
-    glVertex3f(-1.0f, 1.0f, -1.0f);
-    glVertex3f(1.0f, 1.0f, -1.0f);
-    glColor3ub(255, 255, 255);
-    glVertex3f(1.0f, -1.0f, -1.0f);
-    glVertex3f(-1.0f, -1.0f, -1.0f);
-    glEnd();
-
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-
-    if(m_lighting)
-        glEnable(GL_LIGHTING);
+    glTranslatef(m_cameraPosition[0], m_cameraPosition[1], -1.0f);
 }
 
-void Renderer3Dex::DrawModel(std::unordered_set<int> pickTriIndices)
+void Renderer2Dex::DrawSelection(const SSelectionInfo& sinfo) const
 {
     glClear(GL_DEPTH_BUFFER_BIT);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glMultMatrixf(&m_viewMatrix[0][0]);
 
-    glLightfv(GL_LIGHT1, GL_POSITION, &m_lightPosition[0]);
-
-    const std::vector<glm::vec3> &vert = m_model->GetVertices();
-    const std::vector<glm::vec2> &uvs = m_model->GetUVCoords();
-    const std::vector<glm::vec3> &norms = m_model->GetNormals();
-
-    glBegin(GL_TRIANGLES);
-    int i = 0;
-    glColor3ub(255, 255, 255);
-    for(const glm::uvec4 &t : m_model->GetTriangles())
+    if(sinfo.m_editMode == (int)CRenWin2D::EM_SNAP ||
+       sinfo.m_editMode == (int)CRenWin2D::EM_CHANGE_FLAPS ||
+       sinfo.m_editMode == (int)CRenWin2D::EM_ROTATE)
     {
-        bool faceSelected = pickTriIndices.find(i) != pickTriIndices.end();
+        CMesh::STriangle2D* trUnderCursor = nullptr;
+        int edgeUnderCursor = 0;
+        m_model->GetStuffUnderCursor(sinfo.m_mouseWorldPos, trUnderCursor, edgeUnderCursor);
 
-        BindTexture(t[3]);
-
-        const glm::vec3 &vertex1 = vert[t[0]];
-        const glm::vec3 &vertex2 = vert[t[1]];
-        const glm::vec3 &vertex3 = vert[t[2]];
-
-        const glm::vec2 &uv1 = uvs[t[0]];
-        const glm::vec2 &uv2 = uvs[t[1]];
-        const glm::vec2 &uv3 = uvs[t[2]];
-
-        const glm::vec3 &faceNormal = norms[i++];
-
-        glNormal3f(faceNormal[0], faceNormal[1], faceNormal[2]);
-
-        if(faceSelected)
-            glTexCoord2f(0.0f, 0.0f);
-        else
-            glTexCoord2f(uv1[0], uv1[1]);
-        glVertex3f(vertex1[0], vertex1[1], vertex1[2]);
-
-        if(!faceSelected)
-            glTexCoord2f(uv2[0], uv2[1]);
-        glVertex3f(vertex2[0], vertex2[1], vertex2[2]);
-
-        if(!faceSelected)
-            glTexCoord2f(uv3[0], uv3[1]);
-        glVertex3f(vertex3[0], vertex3[1], vertex3[2]);
-    }
-
-    glEnd();
-
-    UnbindTexture();
-}
-
-void Renderer3Dex::UpdateViewMatrix(glm::mat4 viewMatrix)
-{
-    m_pickTexValid = false;
-    m_viewMatrix = viewMatrix;
-}
-
-void Renderer3Dex::SetLightPosition(glm::vec3 position)
-{
-    m_lightPosition = {position.x, position.y, position.z, 1.0f};
-}
-
-QImage* Renderer3Dex::RefreshPickingTexture()
-{
-    if(m_pickTexValid)
-        return &m_pickingTexture;
-
-    m_pickTexValid = true;
-
-    QOpenGLFramebufferObject fbo(m_width, m_height, QOpenGLFramebufferObject::Depth, GL_TEXTURE_2D);
-    if(!fbo.isValid())
-    {
-        return nullptr; //too bad, can't do any picking
-    }
-    fbo.bind();
-
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glMultMatrixf(&m_viewMatrix[0][0]);
-
-    glDisable(GL_LIGHTING);
-    glDisable(GL_TEXTURE_2D);
-
-    glBegin(GL_TRIANGLES);
-
-    const std::vector<glm::vec3> &vert = m_model->GetVertices();
-
-    int i = 0;
-    for(const glm::uvec4 &t : m_model->GetTriangles())
-    {
-        const glm::vec3 &vertex1 = vert[t[0]];
-        const glm::vec3 &vertex2 = vert[t[1]];
-        const glm::vec3 &vertex3 = vert[t[2]];
-
-        int r = i & 0x0000FF;
-        int g = i & 0x00FF00; g >>= 8;
-        int b = i & 0xFF0000; b >>= 16;
-
-        glColor3ub(r, g, b);
-        glVertex3f(vertex1[0], vertex1[1], vertex1[2]);
-        glVertex3f(vertex2[0], vertex2[1], vertex2[2]);
-        glVertex3f(vertex3[0], vertex3[1], vertex3[2]);
-        i++;
-    }
-
-    glEnd();
-
-    if(m_lighting)
-        glEnable(GL_LIGHTING);
-    glEnable(GL_TEXTURE_2D);
-
-    glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
-
-    m_pickingTexture = fbo.toImage();
-
-    fbo.release();
-    return &m_pickingTexture;
-}
-
-void Renderer3Dex::LoadTexture(QImage *img, unsigned index)
-{
-    if(!img)
-    {
-        m_textures[index].reset(nullptr);
-    } else {
-        if(m_textures[index])
-            m_textures[index]->destroy();
-        m_textures[index].reset(new QOpenGLTexture(*img));
-        m_textures[index]->setMinificationFilter(QOpenGLTexture::LinearMipMapLinear);
-        m_textures[index]->setMagnificationFilter(QOpenGLTexture::Linear);
-        m_textures[index]->setWrapMode(QOpenGLTexture::Repeat);
-    }
-}
-
-void Renderer3Dex::BindTexture(unsigned id)
-{
-    const bool renTexture = CSettings::GetInstance().GetRenderFlags() & CSettings::R_TEXTR;
-    if(renTexture && m_boundTextureID != (int)id)
-    {
-        glEnd();
-        if(m_textures[id])
+        if(sinfo.m_editMode == (int)CRenWin2D::EM_ROTATE && sinfo.m_triangle)
         {
-            m_textures[id]->bind();
-        } else if(m_boundTextureID >= 0 && m_textures[m_boundTextureID])
-        {
-            m_textures[m_boundTextureID]->release();
+            trUnderCursor = (CMesh::STriangle2D*)sinfo.m_triangle;
+            edgeUnderCursor = sinfo.m_edge;
         }
-        glBegin(GL_TRIANGLES);
-        m_boundTextureID = id;
-    }
-}
 
-void Renderer3Dex::UnbindTexture()
-{
-    const bool renTexture = CSettings::GetInstance().GetRenderFlags() & CSettings::R_TEXTR;
-    if(renTexture)
-    {
-        for(auto it=m_textures.begin(); it!=m_textures.end(); it++)
+        //highlight edge under cursor (if it has neighbour)
+        if(trUnderCursor && (trUnderCursor->GetEdge(edgeUnderCursor)->HasTwoTriangles() ||
+                             sinfo.m_editMode == (int)CRenWin2D::EM_ROTATE))
         {
-            if(m_textures[it->first] && m_textures[it->first]->isBound())
+            if(sinfo.m_editMode == (int)CRenWin2D::EM_CHANGE_FLAPS &&
+               trUnderCursor->GetEdge(edgeUnderCursor)->IsSnapped())
+                return;
+
+            const glm::vec2 &v1 = (*trUnderCursor)[0];
+            const glm::vec2 &v2 = (*trUnderCursor)[1];
+            const glm::vec2 &v3 = (*trUnderCursor)[2];
+
+            glm::vec2 e1Middle;
+
+            if(sinfo.m_editMode == (int)CRenWin2D::EM_CHANGE_FLAPS)
             {
-                m_textures[it->first]->release();
-                break;
+                glColor3f(0.0f, 0.0f, 1.0f);
+            } else if(sinfo.m_editMode == (int)CRenWin2D::EM_SNAP) {
+                if(trUnderCursor->GetEdge(edgeUnderCursor)->IsSnapped())
+                    glColor3f(1.0f, 0.0f, 0.0f);
+                else
+                    glColor3f(0.0f, 1.0f, 0.0f);
+            } else {
+                glColor3f(0.0f, 1.0f, 1.0f);
             }
+            glLineWidth(3.0f);
+            glBegin(GL_LINES);
+            switch(edgeUnderCursor)
+            {
+                case 0:
+                    glVertex2f(v1[0], v1[1]);
+                    glVertex2f(v2[0], v2[1]);
+                    e1Middle = 0.5f*(v1+v2);
+                    break;
+                case 1:
+                    glVertex2f(v3[0], v3[1]);
+                    glVertex2f(v2[0], v2[1]);
+                    e1Middle = 0.5f*(v3+v2);
+                    break;
+                case 2:
+                    glVertex2f(v1[0], v1[1]);
+                    glVertex2f(v3[0], v3[1]);
+                    e1Middle = 0.5f*(v1+v3);
+                    break;
+                default : break;
+            }
+
+            if(sinfo.m_editMode != (int)CRenWin2D::EM_ROTATE)
+            {
+                const CMesh::STriangle2D* tr2 = trUnderCursor->GetEdge(edgeUnderCursor)->GetOtherTriangle(trUnderCursor);
+                int e2 = trUnderCursor->GetEdge(edgeUnderCursor)->GetOtherTriIndex(trUnderCursor);
+                const glm::vec2 &v12 = (*tr2)[0];
+                const glm::vec2 &v22 = (*tr2)[1];
+                const glm::vec2 &v32 = (*tr2)[2];
+
+                switch(e2)
+                {
+                    case 0:
+                        glVertex2f(v12[0], v12[1]);
+                        glVertex2f(v22[0], v22[1]);
+                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        e1Middle = 0.5f*(v12+v22);
+                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        break;
+                    case 1:
+                        glVertex2f(v32[0], v32[1]);
+                        glVertex2f(v22[0], v22[1]);
+                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        e1Middle = 0.5f*(v32+v22);
+                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        break;
+                    case 2:
+                        glVertex2f(v12[0], v12[1]);
+                        glVertex2f(v32[0], v32[1]);
+                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        e1Middle = 0.5f*(v12+v32);
+                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        break;
+                    default : break;
+                }
+            }
+            glEnd();
+            glLineWidth(1.0f);
+            glColor3f(1.0f, 1.0f, 1.0f);
         }
-        m_boundTextureID = -1;
+    } else {
+        //draw selection rectangle
+        if(sinfo.m_group)
+        {
+            const CMesh::STriGroup* tGroup = (const CMesh::STriGroup*)sinfo.m_group;
+            glColor3f(1.0f, 0.0f, 0.0f);
+            glBegin(GL_LINE_LOOP);
+            glm::vec2 pos = tGroup->GetPosition();
+            float aabbxh = tGroup->GetAABBHalfSide();
+            glVertex2f(pos[0]-aabbxh, pos[1]+aabbxh);
+            glVertex2f(pos[0]+aabbxh, pos[1]+aabbxh);
+            glVertex2f(pos[0]+aabbxh, pos[1]-aabbxh);
+            glVertex2f(pos[0]-aabbxh, pos[1]-aabbxh);
+            glEnd();
+            glColor3f(1.0f, 1.0f, 1.0f);
+        }
     }
 }
 
-void Renderer3Dex::CreateFoldTextures()
+void Renderer2Dex::DrawPaperSheet(const glm::vec2 &position, const glm::vec2 &size) const
 {
-    QImage imgFolds(16, 4, QImage::Format_ARGB32); //row 0 - black, row 1 - valley, row 2 - mountain, row 3 - white
-    imgFolds.fill(QColor(0,0,0,255));
+    glBegin(GL_QUADS);
+        //shadow
+        glColor3f(0.2f, 0.2f, 0.2f);
+        glVertex2f(position.x+0.5f, position.y-0.5f);
+        glVertex2f(position.x+0.5f+size.x, position.y-0.5f);
+        glVertex2f(position.x+0.5f+size.x, position.y+size.y-0.5f);;
+        glVertex2f(position.x+0.5f, position.y+size.y-0.5f);
 
-    for(int i=0; i<6; ++i)
-    {
-        imgFolds.setPixelColor(i, 1, QColor(0,0,0,0));
-        imgFolds.setPixelColor(i, 2, QColor(0,0,0,0));
-    }
-    for(int i=0; i<16; ++i)
-    {
-        imgFolds.setPixelColor(i, 3, QColor(255, 255, 255, 255));
-    }
-    imgFolds.setPixelColor(3, 2, QColor(0,0,0,255));
+        //sheet
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glVertex2f(position.x, position.y);
+        glVertex2f(position.x+size.x, position.y);
+        glVertex2f(position.x+size.x, position.y+size.y);
+        glVertex2f(position.x, position.y+size.y);
+    glEnd();
 
-    m_texFolds.reset(new QOpenGLTexture(imgFolds));
-    m_texFolds->setMinMagFilters(QOpenGLTexture::Nearest, QOpenGLTexture::Nearest);
-    m_texFolds->setWrapMode(QOpenGLTexture::Repeat);
+    //paper edge
+    glBegin(GL_LINE_LOOP);
+        glColor3f(0.0f, 0.0f, 0.0f);
+        glVertex2f(position.x, position.y);
+        glVertex2f(position.x+size.x, position.y);
+        glVertex2f(position.x+size.x, position.y+size.y);
+        glVertex2f(position.x, position.y+size.y);
+    glEnd();
 }
 
+void Renderer2Dex::DrawScene() const
+{
+    if(!m_model)
+        return;
 
+    glClear(GL_DEPTH_BUFFER_BIT);
 
-void Renderer3Dex::DrawFlaps() const
+    DrawParts();
+}
+
+void Renderer2Dex::DrawParts() const
+{
+    const unsigned char renFlags = CSettings::GetInstance().GetRenderFlags();
+
+    if(renFlags & CSettings::R_FLAPS)
+    {
+        DrawFlaps();
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
+
+    DrawGroups();
+
+    if(renFlags & (CSettings::R_EDGES | CSettings::R_FOLDS))
+    {
+        DrawEdges();
+    }
+}
+
+void Renderer2Dex::DrawFlaps() const
 {
     if(m_texFolds)
         m_texFolds->bind();
@@ -416,8 +277,49 @@ void Renderer3Dex::DrawFlaps() const
         m_texFolds->release();
 }
 
+void Renderer2Dex::DrawGroups() const
+{
+    const std::vector<glm::vec2> &uvs = m_model->GetUVCoords();
 
-void Renderer3Dex::DrawEdges()
+    glBegin(GL_TRIANGLES);
+    const auto &parts = m_model->GetGroups();
+    for(auto it=parts.begin(); it!=parts.end(); ++it)
+    {
+        const CMesh::STriGroup &grp = *it;
+        const std::list<CMesh::STriangle2D*>& grpTris = grp.GetTriangles();
+
+        for(auto it2=grpTris.begin(), itEnd = grpTris.end(); it2!=itEnd; ++it2)
+        {
+            const CMesh::STriangle2D& tr2D = **it2;
+            const glm::uvec4 &t = m_model->GetTriangles()[tr2D.ID()];
+
+            BindTexture(t[3]);
+
+            const glm::vec2 vertex1 = tr2D[0];
+            const glm::vec2 vertex2 = tr2D[1];
+            const glm::vec2 vertex3 = tr2D[2];
+
+            const glm::vec2 &uv1 = uvs[t[0]];
+            const glm::vec2 &uv2 = uvs[t[1]];
+            const glm::vec2 &uv3 = uvs[t[2]];
+
+            glTexCoord2f(uv1[0], uv1[1]);
+            glVertex2f(vertex1[0], vertex1[1]);
+
+            glTexCoord2f(uv2[0], uv2[1]);
+            glVertex2f(vertex2[0], vertex2[1]);
+
+            glTexCoord2f(uv3[0], uv3[1]);
+            glVertex2f(vertex3[0], vertex3[1]);
+
+        }
+    }
+    glEnd();
+
+    UnbindTexture();
+}
+
+void Renderer2Dex::DrawEdges() const
 {
     const unsigned char renFlags = CSettings::GetInstance().GetRenderFlags();
 
@@ -457,7 +359,7 @@ void Renderer3Dex::DrawEdges()
         m_texFolds->release();
 }
 
-void Renderer3Dex::RenderFlap(void *tr, int edge) const
+void Renderer2Dex::RenderFlap(void *tr, int edge) const
 {
     const CMesh::STriangle2D& t = *static_cast<CMesh::STriangle2D*>(tr);
     const glm::vec2 &v1 = t[edge];
@@ -516,7 +418,7 @@ void Renderer3Dex::RenderFlap(void *tr, int edge) const
     }
 }
 
-void Renderer3Dex::RenderEdge(void *tr, int edge, int foldType) const
+void Renderer2Dex::RenderEdge(void *tr, int edge, int foldType) const
 {
     const CMesh::STriangle2D& t = *static_cast<CMesh::STriangle2D*>(tr);
     const glm::vec2 &v1 = t[edge];
@@ -555,72 +457,94 @@ void Renderer3Dex::RenderEdge(void *tr, int edge, int foldType) const
     glVertex2f(v2.x - vN.x, v2.y - vN.y);
 }
 
-void Renderer3Dex::DrawPaperSheet(glm::vec2 position, glm::vec2 size)
+QImage Renderer2Dex::DrawImageFromSheet(const glm::vec2 &pos) const
 {
-    glBegin(GL_QUADS);
-        //shadow
-        glColor3f(0.2f, 0.2f, 0.2f);
-        glVertex2f(position.x+0.5f, position.y-0.5f);
-        glVertex2f(position.x+0.5f+size.x, position.y-0.5f);
-        glVertex2f(position.x+0.5f+size.x, position.y+size.y-0.5f);;
-        glVertex2f(position.x+0.5f, position.y+size.y-0.5f);
+    const CSettings& sett = CSettings::GetInstance();
 
-        //sheet
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glVertex2f(position.x, position.y);
-        glVertex2f(position.x+size.x, position.y);
-        glVertex2f(position.x+size.x, position.y+size.y);
-        glVertex2f(position.x, position.y+size.y);
-    glEnd();
+    const int papW = sett.GetPaperWidth();
+    const int papH = sett.GetPaperHeight();
+    const int fboW = (int)(papW * sett.GetResolutionScale());
+    const int fboH = (int)(papH * sett.GetResolutionScale());
 
-    //paper edge
-    glBegin(GL_LINE_LOOP);
-        glColor3f(0.0f, 0.0f, 0.0f);
-        glVertex2f(position.x, position.y);
-        glVertex2f(position.x+size.x, position.y);
-        glVertex2f(position.x+size.x, position.y+size.y);
-        glVertex2f(position.x, position.y+size.y);
-    glEnd();
+    glViewport(0, 0, fboW, fboH);
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(-papW * 0.05f, papW * 0.05f, -papH * 0.05f, papH * 0.05f, 0.1f, 2000.0f);
+
+    glMatrixMode(GL_MODELVIEW);
+
+    QOpenGLFramebufferObjectFormat fboFormat;
+    fboFormat.setSamples(6);
+    fboFormat.setAttachment(QOpenGLFramebufferObject::Depth);
+    fboFormat.setTextureTarget(GL_TEXTURE_2D_MULTISAMPLE);
+    QOpenGLFramebufferObject fbo(fboW, fboH, fboFormat);
+    if(!fbo.isValid())
+    {
+        throw std::logic_error("Failed to create framebuffer object");
+    }
+    fbo.bind();
+
+    glLoadIdentity();
+    glTranslatef(-pos.x - papW*0.05f, -pos.y - papH*0.05f, -1.0f);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    DrawParts();
+
+    QImage img(fbo.toImage());
+
+    assert(fbo.release());
+
+    glViewport(0, 0, m_width, m_height);
+
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+
+    glClearColor(0.7f, 0.7f, 0.7f, 0.7f);
+
+    return img;
 }
 
-void Renderer3Dex::DrawGroups()
+void Renderer2Dex::BindTexture(unsigned id) const
 {
-    const std::vector<glm::vec2> &uvs = m_model->GetUVCoords();
-
-    glBegin(GL_TRIANGLES);
-    const auto &parts = m_model->GetGroups();
-    for(auto it=parts.begin(); it!=parts.end(); ++it)
+    const bool renTexture = CSettings::GetInstance().GetRenderFlags() & CSettings::R_TEXTR;
+    if(renTexture && m_boundTextureID != (int)id)
     {
-        const CMesh::STriGroup &grp = *it;
-        const std::list<CMesh::STriangle2D*>& grpTris = grp.GetTriangles();
-
-        for(auto it2=grpTris.begin(), itEnd = grpTris.end(); it2!=itEnd; ++it2)
+        glEnd();
+        if(m_textures[id])
         {
-            const CMesh::STriangle2D& tr2D = **it2;
-            const glm::uvec4 &t = m_model->GetTriangles()[tr2D.ID()];
-
-            BindTexture(t[3]);
-
-            const glm::vec2 vertex1 = tr2D[0];
-            const glm::vec2 vertex2 = tr2D[1];
-            const glm::vec2 vertex3 = tr2D[2];
-
-            const glm::vec2 &uv1 = uvs[t[0]];
-            const glm::vec2 &uv2 = uvs[t[1]];
-            const glm::vec2 &uv3 = uvs[t[2]];
-
-            glTexCoord2f(uv1[0], uv1[1]);
-            glVertex2f(vertex1[0], vertex1[1]);
-
-            glTexCoord2f(uv2[0], uv2[1]);
-            glVertex2f(vertex2[0], vertex2[1]);
-
-            glTexCoord2f(uv3[0], uv3[1]);
-            glVertex2f(vertex3[0], vertex3[1]);
-
+            m_textures[id]->bind();
+        } else if(m_boundTextureID >= 0 && m_textures[m_boundTextureID])
+        {
+            m_textures[m_boundTextureID]->release();
         }
+        glBegin(GL_TRIANGLES);
+        m_boundTextureID = id;
     }
-    glEnd();
+}
 
-    UnbindTexture();
+void Renderer2Dex::UnbindTexture() const
+{
+    const bool renTexture = CSettings::GetInstance().GetRenderFlags() & CSettings::R_TEXTR;
+    if(renTexture)
+    {
+        for(auto it=m_textures.begin(); it!=m_textures.end(); it++)
+        {
+            if(m_textures[it->first] && m_textures[it->first]->isBound())
+            {
+                m_textures[it->first]->release();
+                break;
+            }
+        }
+        m_boundTextureID = -1;
+    }
+}
+
+void Renderer2Dex::ClearTextures()
+{
+    m_boundTextureID = -1;
+    IRenderer2D::ClearTextures();
 }
