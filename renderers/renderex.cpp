@@ -79,7 +79,9 @@ void Renderer2Dex::PreDraw() const
 
 void Renderer2Dex::DrawSelection(const SSelectionInfo& sinfo) const
 {
-    glClear(GL_DEPTH_BUFFER_BIT);
+    nvgBeginFrame(vg, m_width, m_height, 1);
+    SetupNvgView();
+    nvgStrokeWidth(vg, 3/m_scale);
 
     if(sinfo.m_editMode == (int)CRenWin2D::EM_SNAP ||
        sinfo.m_editMode == (int)CRenWin2D::EM_CHANGE_FLAPS ||
@@ -107,96 +109,99 @@ void Renderer2Dex::DrawSelection(const SSelectionInfo& sinfo) const
             const glm::vec2 &v2 = (*trUnderCursor)[1];
             const glm::vec2 &v3 = (*trUnderCursor)[2];
 
-            glm::vec2 e1Middle;
+            NVGcolor color;
 
             if(sinfo.m_editMode == (int)CRenWin2D::EM_CHANGE_FLAPS)
             {
-                glColor3f(0.0f, 0.0f, 1.0f);
+                color = nvgRGBf(0.0f, 0.0f, 1.0f);
             } else if(sinfo.m_editMode == (int)CRenWin2D::EM_SNAP) {
                 if(trUnderCursor->GetEdge(edgeUnderCursor)->IsSnapped())
-                    glColor3f(1.0f, 0.0f, 0.0f);
+                    color = nvgRGBf(1.0f, 0.0f, 0.0f);
                 else
-                    glColor3f(0.0f, 1.0f, 0.0f);
+                    color = nvgRGBf(0.0f, 1.0f, 0.0f);
             } else {
-                glColor3f(0.0f, 1.0f, 1.0f);
+                color = nvgRGBf(0.0f, 1.0f, 1.0f);
             }
-            glLineWidth(3.0f);
-            glBegin(GL_LINES);
+
+            glm::vec2 a, b;
+            glm::vec2 e1Middle;
             switch(edgeUnderCursor)
             {
                 case 0:
-                    glVertex2f(v1[0], v1[1]);
-                    glVertex2f(v2[0], v2[1]);
+                    a = v1; b = v2;
                     e1Middle = 0.5f*(v1+v2);
                     break;
                 case 1:
-                    glVertex2f(v3[0], v3[1]);
-                    glVertex2f(v2[0], v2[1]);
+                    a = v3; b = v2;
                     e1Middle = 0.5f*(v3+v2);
                     break;
                 case 2:
-                    glVertex2f(v1[0], v1[1]);
-                    glVertex2f(v3[0], v3[1]);
+                    a = v1; b = v3;
                     e1Middle = 0.5f*(v1+v3);
                     break;
                 default : break;
+            }
+            if (edgeUnderCursor <= 2)
+            {
+                nvgBeginPath(vg);
+                nvgMoveTo(vg, a[0], a[1]);
+                nvgLineTo(vg, b[0], b[1]);
+                nvgStrokeColor(vg, color);
+                nvgStroke(vg);
             }
 
             if(sinfo.m_editMode != (int)CRenWin2D::EM_ROTATE)
             {
                 const CMesh::STriangle2D* tr2 = trUnderCursor->GetEdge(edgeUnderCursor)->GetOtherTriangle(trUnderCursor);
                 int e2 = trUnderCursor->GetEdge(edgeUnderCursor)->GetOtherTriIndex(trUnderCursor);
-                const glm::vec2 &v12 = (*tr2)[0];
-                const glm::vec2 &v22 = (*tr2)[1];
-                const glm::vec2 &v32 = (*tr2)[2];
+                const glm::vec2 v12 = (*tr2)[0];
+                const glm::vec2 v22 = (*tr2)[1];
+                const glm::vec2 v32 = (*tr2)[2];
 
+                glm::vec2 a, b, c, d;
                 switch(e2)
                 {
                     case 0:
-                        glVertex2f(v12[0], v12[1]);
-                        glVertex2f(v22[0], v22[1]);
-                        glVertex2f(e1Middle[0], e1Middle[1]);
-                        e1Middle = 0.5f*(v12+v22);
-                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        a = v12; b = v22;
+                        d = 0.5f*(v12+v22);
                         break;
                     case 1:
-                        glVertex2f(v32[0], v32[1]);
-                        glVertex2f(v22[0], v22[1]);
-                        glVertex2f(e1Middle[0], e1Middle[1]);
-                        e1Middle = 0.5f*(v32+v22);
-                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        a = v32; b = v22;
+                        d = 0.5f*(v32+v22);
                         break;
                     case 2:
-                        glVertex2f(v12[0], v12[1]);
-                        glVertex2f(v32[0], v32[1]);
-                        glVertex2f(e1Middle[0], e1Middle[1]);
-                        e1Middle = 0.5f*(v12+v32);
-                        glVertex2f(e1Middle[0], e1Middle[1]);
+                        a = v12; b = v32;
+                        d = 0.5f*(v12+v32);
                         break;
                     default : break;
                 }
+                c = e1Middle;
+                if (e2 <= 2)
+                {
+                    nvgBeginPath(vg);
+                    nvgMoveTo(vg, a[0], a[1]);
+                    nvgLineTo(vg, b[0], b[1]);
+                    nvgMoveTo(vg, c[0], c[1]);
+                    nvgLineTo(vg, d[0], d[1]);
+                    nvgStroke(vg);
+                }
             }
-            glEnd();
-            glLineWidth(1.0f);
-            glColor3f(1.0f, 1.0f, 1.0f);
         }
     } else {
-        //draw selection rectangle
+        //draw selection rectangle - CRenWin2D::EM_MOVE
         if(sinfo.m_group)
         {
             const CMesh::STriGroup* tGroup = (const CMesh::STriGroup*)sinfo.m_group;
-            glColor3f(1.0f, 0.0f, 0.0f);
-            glBegin(GL_LINE_LOOP);
             glm::vec2 pos = tGroup->GetPosition();
-            float aabbxh = tGroup->GetAABBHalfSide();
-            glVertex2f(pos[0]-aabbxh, pos[1]+aabbxh);
-            glVertex2f(pos[0]+aabbxh, pos[1]+aabbxh);
-            glVertex2f(pos[0]+aabbxh, pos[1]-aabbxh);
-            glVertex2f(pos[0]-aabbxh, pos[1]-aabbxh);
-            glEnd();
-            glColor3f(1.0f, 1.0f, 1.0f);
+            float w = tGroup->GetAABBHalfSide() * 2;
+            nvgBeginPath(vg);
+            nvgRect(vg, pos[0]-w/2, pos[1]-w/2, w, w);
+            nvgStrokeColor(vg, nvgRGBf(1.0f, 0.0f, 0.0f));
+            nvgStroke(vg);
         }
     }
+
+    nvgEndFrame(vg);
 }
 
 void Renderer2Dex::DrawPaperSheet(const glm::vec2 &position, const glm::vec2 &size) const
