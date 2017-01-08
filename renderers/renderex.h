@@ -37,7 +37,7 @@ private:
     void    DrawGroups() const;
     void    DrawEdges() const;
     void    RenderFlap(CMesh::STriangle2D *tr, int edge) const;
-    void    RenderEdge(void *tr, int edge, int foldType) const;
+    void    RenderEdge(CMesh::STriangle2D *tr, int edge, int foldType) const;
 
     void    BindTexture(unsigned id) const;
     void    UnbindTexture() const;
@@ -46,7 +46,7 @@ private:
 
     struct NVGcontext* vg;
     float m_scale;
-    float SetupNvgView() const;
+    void SetupNvgView() const;
 };
 
 #endif // RENDERER_EX_H

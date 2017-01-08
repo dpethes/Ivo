@@ -48,7 +48,7 @@ void Renderer2Dex::RecalcProjection()
     m_scale = m_height/m_cameraPosition[2];  // -> W/(Z * W/H);
 }
 
-float Renderer2Dex::SetupNvgView() const
+void Renderer2Dex::SetupNvgView() const
 {
     //coordinate system: center & flip vertical
     nvgTranslate(vg, m_width/2, m_height/2);
@@ -248,6 +248,7 @@ void Renderer2Dex::DrawFlaps() const
 {
     nvgBeginFrame(vg, m_width, m_height, 1);
     SetupNvgView();
+    nvgLineJoin(vg, NVG_ROUND);
 
     for(const CMesh::SEdge &e : m_model->GetEdges())
     {
@@ -321,14 +322,9 @@ void Renderer2Dex::DrawEdges() const
 {
     const unsigned char renFlags = CSettings::GetInstance().GetRenderFlags();
 
-    //for dotted line style
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
+    nvgBeginFrame(vg, m_width, m_height, 1);
+    SetupNvgView();
 
-    if(m_texFolds)
-        m_texFolds->bind();
-
-    glBegin(GL_QUADS);
     for(const CMesh::SEdge &e : m_model->GetEdges())
     {
         int foldType = (int)e.GetFoldType();
@@ -345,16 +341,13 @@ void Renderer2Dex::DrawEdges() const
              RenderEdge(e.GetTriangle(1), e.GetTriIndex(1), CMesh::SEdge::FT_FLAT);
          }
      } else if(renFlags & CSettings::R_EDGES) {
-         void *t = static_cast<void*>(e.GetAnyTriangle());
+         CMesh::STriangle2D *t = e.GetAnyTriangle();
          int edge = e.GetAnyTriIndex();
          RenderEdge(t, edge, CMesh::SEdge::FT_FLAT);
      }
     }
-    glEnd();
-    glDisable(GL_BLEND);
 
-    if(m_texFolds && m_texFolds->isBound())
-        m_texFolds->release();
+    nvgEndFrame(vg);
 }
 
 //flaps are not filled - valid flap is on a sheet, so it'll be white
@@ -383,47 +376,36 @@ void Renderer2Dex::RenderFlap(CMesh::STriangle2D *tr, int edge) const
     }
     nvgLineTo(vg, v2.x, v2.y);
     nvgStrokeColor(vg, nvgRGB(0,0,0));
-    nvgStrokeWidth(vg, 0.05);
+    nvgStrokeWidth(vg, 0.025);
     nvgStroke(vg);
 }
 
-void Renderer2Dex::RenderEdge(void *tr, int edge, int foldType) const
+void Renderer2Dex::RenderEdge(CMesh::STriangle2D *tr, int edge, int foldType) const
 {
-    const CMesh::STriangle2D& t = *static_cast<CMesh::STriangle2D*>(tr);
+    const CMesh::STriangle2D& t = *tr;
     const glm::vec2 &v1 = t[edge];
     const glm::vec2 &v2 = t[(edge+1)%3];
-    const glm::vec2 vN = t.GetNormal(edge) * 0.015f * CSettings::GetInstance().GetLineWidth();
-    const float len = t.GetEdgeLen(edge) * (float)CSettings::GetInstance().GetStippleLoop();
 
-    float foldSelector = 1.0f;
-
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, v1.x, v1.y);
+    nvgLineTo(vg, v2.x, v2.y);
     switch(foldType)
     {
     case CMesh::SEdge::FT_FLAT:
-        foldSelector = 1.0f;
+        nvgStrokeColor(vg, nvgRGBA(0,0,0,192));
+        nvgStrokeWidth(vg, 2*1/m_scale);
         break;
-    case CMesh::SEdge::FT_VALLEY:
-        foldSelector = 2.0f;
+    case CMesh::SEdge::FT_VALLEY:  //todo dashes?
+        nvgStrokeColor(vg, nvgRGBA(0,64,64,192));
+        nvgStrokeWidth(vg, 0.025);
         break;
     case CMesh::SEdge::FT_MOUNTAIN:
-        foldSelector = 3.0f;
+        nvgStrokeColor(vg, nvgRGBA(128,128,128,128));
+        nvgStrokeWidth(vg, 0.025);
         break;
     default: assert(false);
     }
-
-    static const float oneForth = 1.0f/4.0f;
-
-    glTexCoord2f(0.0f, oneForth * (foldSelector - 1.0f) + 0.1f);
-    glVertex2f(v1.x - vN.x, v1.y - vN.y);
-
-    glTexCoord2f(0.0f, oneForth * foldSelector - 0.1f);
-    glVertex2f(v1.x + vN.x, v1.y + vN.y);
-
-    glTexCoord2f(len, oneForth * foldSelector - 0.1f);
-    glVertex2f(v2.x + vN.x, v2.y + vN.y);
-
-    glTexCoord2f(len, oneForth * (foldSelector - 1.0f) + 0.1f);
-    glVertex2f(v2.x - vN.x, v2.y - vN.y);
+    nvgStroke(vg);
 }
 
 QImage Renderer2Dex::DrawImageFromSheet(const glm::vec2 &pos) const
