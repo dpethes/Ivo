@@ -106,12 +106,14 @@ enum NVGimageFlagsGL {
 #endif /* NANOVG_GL_H */
 
 
-/* Call all gl funcs through opengl context.
-   Context version must match the version initialized by QT
-*/
-#include <QOpenGLFunctions_2_0>
-QOpenGLFunctions_2_0 *qgl;
-
+// Call all gl functions through Qt's OpenGLFunctions class.
+#ifdef NANOVG_GL3
+    #include <QOpenGLFunctions_3_2_Core>
+    QOpenGLFunctions_3_2_Core *qgl;
+#else
+    #include <QOpenGLFunctions_2_0>
+    QOpenGLFunctions_2_0 *qgl;
+#endif
 
 
 
@@ -674,15 +676,15 @@ static int glnvg__renderCreate(void* uptr)
 
 	// Create dynamic vertex array
 #if defined NANOVG_GL3
-	glGenVertexArrays(1, &gl->vertArr);
+    qgl->glGenVertexArrays(1, &gl->vertArr);
 #endif
         qgl->glGenBuffers(1, &gl->vertBuf);
 
 #if NANOVG_GL_USE_UNIFORMBUFFER
 	// Create UBOs
-	glUniformBlockBinding(gl->shader.prog, gl->shader.loc[GLNVG_LOC_FRAG], GLNVG_FRAG_BINDING);
-	glGenBuffers(1, &gl->fragBuf);
-	glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &align);
+    qgl->glUniformBlockBinding(gl->shader.prog, gl->shader.loc[GLNVG_LOC_FRAG], GLNVG_FRAG_BINDING);
+    qgl->glGenBuffers(1, &gl->fragBuf);
+    qgl->glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &align);
 #endif
 	gl->fragSize = sizeof(GLNVGfragUniforms) + align - sizeof(GLNVGfragUniforms) % align;
 
@@ -775,7 +777,7 @@ static int glnvg__renderCreateTexture(void* uptr, int type, int w, int h, int im
 	// The new way to build mipmaps on GLES and GL3
 #if !defined(NANOVG_GL2)
 	if (imageFlags & NVG_IMAGE_GENERATE_MIPMAPS) {
-		glGenerateMipmap(GL_TEXTURE_2D);
+        qgl->glGenerateMipmap(GL_TEXTURE_2D);
 	}
 #endif
 
@@ -940,7 +942,7 @@ static GLNVGfragUniforms* nvg__fragUniformPtr(GLNVGcontext* gl, int i);
 static void glnvg__setUniforms(GLNVGcontext* gl, int uniformOffset, int image)
 {
 #if NANOVG_GL_USE_UNIFORMBUFFER
-	glBindBufferRange(GL_UNIFORM_BUFFER, GLNVG_FRAG_BINDING, gl->fragBuf, uniformOffset, sizeof(GLNVGfragUniforms));
+    qgl->glBindBufferRange(GL_UNIFORM_BUFFER, GLNVG_FRAG_BINDING, gl->fragBuf, uniformOffset, sizeof(GLNVGfragUniforms));
 #else
 	GLNVGfragUniforms* frag = nvg__fragUniformPtr(gl, uniformOffset);
         qgl->glUniform4fv(gl->shader.loc[GLNVG_LOC_FRAG], NANOVG_GL_UNIFORMARRAY_SIZE, &(frag->uniformArray[0][0]));
@@ -1158,13 +1160,13 @@ static void glnvg__renderFlush(void* uptr, NVGcompositeOperationState compositeO
 
 #if NANOVG_GL_USE_UNIFORMBUFFER
 		// Upload ubo for frag shaders
-		glBindBuffer(GL_UNIFORM_BUFFER, gl->fragBuf);
-		glBufferData(GL_UNIFORM_BUFFER, gl->nuniforms * gl->fragSize, gl->uniforms, GL_STREAM_DRAW);
+        qgl->glBindBuffer(GL_UNIFORM_BUFFER, gl->fragBuf);
+        qgl->glBufferData(GL_UNIFORM_BUFFER, gl->nuniforms * gl->fragSize, gl->uniforms, GL_STREAM_DRAW);
 #endif
 
 		// Upload vertex data
 #if defined NANOVG_GL3
-		glBindVertexArray(gl->vertArr);
+        qgl->glBindVertexArray(gl->vertArr);
 #endif
                 qgl->glBindBuffer(GL_ARRAY_BUFFER, gl->vertBuf);
                 qgl->glBufferData(GL_ARRAY_BUFFER, gl->nverts * sizeof(NVGvertex), gl->verts, GL_STREAM_DRAW);
@@ -1178,7 +1180,7 @@ static void glnvg__renderFlush(void* uptr, NVGcompositeOperationState compositeO
                 qgl->glUniform2fv(gl->shader.loc[GLNVG_LOC_VIEWSIZE], 1, gl->view);
 
 #if NANOVG_GL_USE_UNIFORMBUFFER
-		glBindBuffer(GL_UNIFORM_BUFFER, gl->fragBuf);
+        qgl->glBindBuffer(GL_UNIFORM_BUFFER, gl->fragBuf);
 #endif
 
 		for (i = 0; i < gl->ncalls; i++) {
@@ -1479,10 +1481,10 @@ static void glnvg__renderDelete(void* uptr)
 #if NANOVG_GL3
 #if NANOVG_GL_USE_UNIFORMBUFFER
 	if (gl->fragBuf != 0)
-		glDeleteBuffers(1, &gl->fragBuf);
+        qgl->glDeleteBuffers(1, &gl->fragBuf);
 #endif
 	if (gl->vertArr != 0)
-		glDeleteVertexArrays(1, &gl->vertArr);
+        qgl->glDeleteVertexArrays(1, &gl->vertArr);
 #endif
 	if (gl->vertBuf != 0)
                 qgl->glDeleteBuffers(1, &gl->vertBuf);

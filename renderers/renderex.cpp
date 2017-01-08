@@ -8,8 +8,12 @@
 #include "renderex.h"
 
 #include "nanovg/nanovg.h"
-#include <QOpenGLFunctions_2_0>
-#define NANOVG_GL2_IMPLEMENTATION
+#define NANOVG_GL3_IMPLEMENTATION
+#ifdef NANOVG_GL3_IMPLEMENTATION
+    #include <QOpenGLFunctions_3_2_Core>
+#else
+    #include <QOpenGLFunctions_2_0>
+#endif
 #include "nanovg/nanovg_gl.h"
 
 Renderer2Dex::Renderer2Dex() {}
@@ -18,15 +22,19 @@ Renderer2Dex::~Renderer2Dex() {}
 
 void Renderer2Dex::Init()
 {
-    QOpenGLFunctions_2_0 *gl = new QOpenGLFunctions_2_0;
-    gl->initializeOpenGLFunctions();
-    qgl = gl;
-    vg = nvgCreateGL2(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
+#ifdef NANOVG_GL3_IMPLEMENTATION
+    qgl = new QOpenGLFunctions_3_2_Core;
+    qgl->initializeOpenGLFunctions();
+    vg = nvgCreateGL3(0);
+#else
+    qgl = new QOpenGLFunctions_2_0;
+    qgl->initializeOpenGLFunctions();
+    vg = nvgCreateGL2(0);
+#endif
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_TEXTURE_2D);
-    glEnable(GL_MULTISAMPLE);
     glClearColor(0.7f, 0.7f, 0.7f, 0.7f);
     CreateFoldTextures();
 }
