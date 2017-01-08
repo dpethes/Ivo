@@ -1,6 +1,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLFramebufferObject>
 #include <stdexcept>
+#include <algorithm>
 #include "renderlegacy2d.h"
 #include "mesh/mesh.h"
 #include "settings/settings.h"
@@ -253,7 +254,7 @@ void Renderer2Dex::DrawFlaps() const
 {
     nvgBeginFrame(vg, m_width, m_height, 1);
     SetupNvgView();
-    nvgLineJoin(vg, NVG_ROUND);
+    nvgLineJoin(vg, NVG_BEVEL);
 
     for(const CMesh::SEdge &e : m_model->GetEdges())
     {
@@ -398,7 +399,7 @@ void Renderer2Dex::RenderEdge(CMesh::STriangle2D *tr, int edge, int foldType) co
     {
     case CMesh::SEdge::FT_FLAT:
         nvgStrokeColor(vg, nvgRGBA(0,0,0,192));
-        nvgStrokeWidth(vg, 2*1/m_scale);
+        nvgStrokeWidth(vg, std::max(0.025f, 2*1/m_scale));
         break;
     case CMesh::SEdge::FT_VALLEY:  //todo dashes?
         nvgStrokeColor(vg, nvgRGBA(0,64,64,192));
