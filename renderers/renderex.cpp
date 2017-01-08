@@ -221,8 +221,6 @@ void Renderer2Dex::DrawScene() const
     if(!m_model)
         return;
 
-    glClear(GL_DEPTH_BUFFER_BIT);
-
     DrawParts();
 }
 
@@ -233,7 +231,6 @@ void Renderer2Dex::DrawParts() const
     if(renFlags & CSettings::R_FLAPS)
     {
         DrawFlaps();
-        glClear(GL_DEPTH_BUFFER_BIT);
     }
 
     DrawGroups();
