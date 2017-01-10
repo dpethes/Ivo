@@ -4,7 +4,7 @@
 #include "renderlegacy2d.h"
 #include "mesh/mesh.h"
 #include "settings/settings.h"
-#include "renwin2d.h"
+#include "interface/renwin2d.h"
 #include "renderex.h"
 
 Renderer2Dex::Renderer2Dex()
