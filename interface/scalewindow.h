@@ -5,7 +5,7 @@
 #include <glm/vec3.hpp>
 
 namespace Ui {
-class CScaleWindow;
+class ScaleWindow;
 }
 
 class CScaleWindow : public QDialog
@@ -16,8 +16,8 @@ public:
     explicit CScaleWindow(QWidget *parent = 0);
     ~CScaleWindow();
 
-    void     SetOutputScalePtr(float* scaPtr);
-    void     SetInitialScale(glm::vec3 initSca);
+    void SetOutputScalePtr(float* scaPtr);
+    void SetInitialScale(glm::vec3 initSca);
 
 private slots:
     void on_buttonBox_accepted();
@@ -30,7 +30,7 @@ private slots:
     void on_spinLength_valueChanged(double i);
 
 private:
-    Ui::CScaleWindow *ui;
+    Ui::ScaleWindow *ui;
     void ResetUI();
     void SetEditingAsAbsolute(bool absolute);
 

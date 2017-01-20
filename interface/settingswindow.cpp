@@ -35,6 +35,8 @@ void CSettingsWindow::LoadSettings()
 
     ui->spinBoxDetachAngle->setValue(s.GetDetachAngle());
 
+    ui->spinBoxMaxFlatAngle->setValue(s.GetFoldMaxFlatAngle());
+
     switch(s.GetImageFormat())
     {
         case CSettings::IF_BMP :
@@ -50,8 +52,9 @@ void CSettingsWindow::LoadSettings()
         case CSettings::IF_PNG :
         {
             ui->comboBoxFormat->setCurrentIndex(0);
+            break;
         }
-        default:;
+        default: assert(false);
     }
 }
 
@@ -65,6 +68,7 @@ void CSettingsWindow::SaveSettings() const
     float resScale = (float)ui->doubleSpinBoxMultiplier->value();
     unsigned char imgQuality = (unsigned char)ui->horizontalSliderQuality->value();
     unsigned char detachAngle = (unsigned char)ui->spinBoxDetachAngle->value();
+    unsigned char maxFlatAngle = (unsigned char)ui->spinBoxMaxFlatAngle->value();
     CSettings::ImageFormat imgFormat = CSettings::IF_PNG;
 
     if(ui->checkBoxEdges->isChecked())
@@ -112,6 +116,7 @@ void CSettingsWindow::SaveSettings() const
     s.SetStippleLoop(stippleLoop);
     s.SetLineWidth(lineWidth);
     s.SetDetachAngle(detachAngle);
+    s.SetFoldMaxFlatAngle(maxFlatAngle);
 }
 
 void CSettingsWindow::on_pushButtonOK_clicked()

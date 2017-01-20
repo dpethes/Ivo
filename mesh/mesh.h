@@ -15,6 +15,8 @@
 
 #define IVO_VERSION 1
 
+class CIvoCommand;
+
 class CMesh
 {
 public:
@@ -25,26 +27,35 @@ public:
     CMesh();
     ~CMesh();
 
-    void                                    LoadMesh(const std::string& path);
-    void                                    LoadFromPDO(const std::vector<PDO_Face>&                  faces,
-                                                        const std::vector<std::unique_ptr<PDO_Edge>>& edges,
-                                                        const std::vector<glm::vec3>&                 vertices3D,
-                                                        const std::unordered_map<unsigned, PDO_Part>& parts);
+    void                        LoadMesh(const std::string& path);
+    void                        LoadFromPDO(const std::vector<PDO_Face>&                  faces,
+                                            const std::vector<std::unique_ptr<PDO_Edge>>& edges,
+                                            const std::vector<glm::vec3>&                 vertices3D,
+                                            const std::unordered_map<unsigned, PDO_Part>& parts);
 
-    inline const std::vector<glm::vec3>&    GetNormals()       const { return m_flatNormals; }
-    inline const std::vector<glm::vec2>&    GetUVCoords()      const { return m_uvCoords; }
-    inline const std::vector<glm::vec3>&    GetVertices()      const { return m_vertices; }
-    inline const std::vector<glm::uvec4>&   GetTriangles()     const { return m_triangles; }
-    inline const glm::vec3*                 GetAABBox()        const { return m_aabbox; }
-    inline float                            GetBSphereRadius() const { return m_bSphereRadius; }
-    inline const std::list<SEdge>&          GetEdges()         const { return m_edges; }
-    inline const std::list<STriGroup>&      GetGroups()        const { return m_groups; }
-    inline const std::unordered_set<int>&   GetPickedTris()    const { return m_pickTriIndices; }
+    float                       GetBSphereRadius() const { return m_bSphereRadius; }
+    const glm::vec3*            GetAABBox()        const { return m_aabbox; }
+    const std::vector
+        <glm::vec3>&            GetNormals()       const { return m_flatNormals; }
+    const std::vector
+        <glm::vec2>&            GetUVCoords()      const { return m_uvCoords; }
+    const std::vector
+        <glm::vec3>&            GetVertices()      const { return m_vertices; }
+    const std::vector
+        <glm::uvec4>&           GetTriangles()     const { return m_triangles; }
+    const std::list
+        <SEdge>&                GetEdges()         const { return m_edges; }
+    const std::list
+        <STriGroup>&            GetGroups()        const { return m_groups; }
+    const std::unordered_set
+        <int>&                  GetPickedTris()    const { return m_pickTriIndices; }
 
-    inline const std::unordered_map<unsigned, std::string>& GetMaterials() const { return m_materials; }
-    inline void                                             SetMaterials(const std::unordered_map<unsigned, std::string>& materials) { m_materials = materials; }
+    const std::unordered_map
+        <unsigned,std::string>& GetMaterials()     const { return m_materials; }
 
-    const CMesh::STriGroup*     GroupUnderCursor(glm::vec2 &curPos) const;
+    void                        SetMaterials(const std::unordered_map<unsigned, std::string>& materials) { m_materials = materials; }
+
+    CMesh::STriGroup*           GroupUnderCursor(glm::vec2 &curPos);
     void                        GetStuffUnderCursor(const glm::vec2 &curPos, CMesh::STriangle2D*& tr, int &e) const;
     void                        Undo();
     void                        Redo();
@@ -55,7 +66,6 @@ public:
     void                        Serialize(FILE* f) const;
     void                        Deserialize(FILE* f);
     void                        Scale(float scale);
-    void                        ApplyScale(float scale);
     void                        PackGroups(bool undoable=true);
     glm::vec3                   GetSizeMillimeters() const;
     glm::vec3                   GetAABBoxCenter() const;
@@ -64,9 +74,10 @@ public:
     bool                        IsTrianglePicked(int index) const;
     void                        ClearPickedTriangles();
     void                        GroupPickedTriangles();
-    static inline CMesh*        GetMesh() { return g_Mesh; }
 
 private:
+    static CMesh*               GetMesh() { return g_Mesh; }
+    void                        ApplyScale(float scale);
     void                        AddMeshesFromAIScene(const aiScene* scene, const aiNode* node);
     void                        CalculateFlatNormals();
     void                        FillAdjTri_Gen2DTri();
@@ -82,7 +93,8 @@ private:
     std::vector<glm::vec3>      m_vertices;
     std::vector<glm::uvec4>     m_triangles; //vtx1 index, vtx2 index, vtx3 index, mtl index
     std::unordered_set<int>     m_pickTriIndices;
-    std::unordered_map<unsigned, std::string> m_materials;
+    std::unordered_map
+        <unsigned, std::string> m_materials;
     //generated stuff
     std::vector<glm::vec3>      m_flatNormals;
     std::vector<STriangle2D>    m_tri2D;
@@ -93,13 +105,14 @@ private:
 
     QUndoStack                  m_undoStack;
 
+    friend class CAtomicCommand;
+
 public:
     struct STriangle2D
     {
-        void                    SetRelMx(glm::mat3 &invParentMx);
+        STriangle2D() = default;
+
         glm::mat3               GetMatrix() const;
-        void                    SetRotation(float degCCW);
-        void                    SetPosition(glm::vec2 pos);
         bool                    Intersect(const STriangle2D &other) const;
         bool                    PointInside(const glm::vec2 &point) const;
         bool                    PointIsNearEdge(const glm::vec2 &point, const int &e, float &score) const;
@@ -115,6 +128,9 @@ public:
 
     private:
         void                    Init();
+        void                    SetRelMx(glm::mat3 &invParentMx);
+        void                    SetRotation(float degCCW);
+        void                    SetPosition(glm::vec2 pos);
         void                    Scale(float scale);
         void                    ComputeNormals();
         void                    GroupHasTransformed(const glm::mat3 &parMx);
@@ -144,6 +160,13 @@ public:
 
     struct SEdge
     {
+        SEdge() = default;
+        //non-copyable
+        SEdge(const SEdge& o) = delete;
+        SEdge(const SEdge&& o) = delete;
+        SEdge& operator=(const SEdge& o) = delete;
+        SEdge& operator=(const SEdge&& o) = delete;
+
         enum EFlapPosition
         {
             FP_LEFT=1,
@@ -158,6 +181,7 @@ public:
             FT_FLAT
         };
 
+        float                   GetAngle() const { return m_angle; }
         void                    SetSnapped(bool snapped);
         void                    NextFlapPosition();
         inline bool             HasTwoTriangles() const { return m_left && m_right; }
@@ -190,14 +214,14 @@ public:
     struct STriGroup
     {
         STriGroup();
+        //non-copyable
+        STriGroup(const STriGroup& o) = delete;
+        STriGroup(const STriGroup&& o) = delete;
+        STriGroup& operator=(const STriGroup& o) = delete;
+        STriGroup& operator=(const STriGroup&& o) = delete;
 
-        void                    AttachGroup(STriangle2D* tr2, int e2);
-        void                    BreakGroup(STriangle2D* tr2, int e2);
         void                    JoinEdge(STriangle2D* tr, int e);
         void                    BreakEdge(STriangle2D* tr, int e);
-        void                    CentrateOrigin();
-        bool                    AddTriangle(STriangle2D* tr, STriangle2D* referal);
-        void                    RemTriangle(STriangle2D* tr);
         void                    SetRotation(float angle);
         void                    SetPosition(float x, float y);
         inline glm::vec2        GetPosition() const { return m_position; }
@@ -205,11 +229,18 @@ public:
         const float&            GetDepth() const;
         const float&            GetAABBHalfSide() const;
 
-        const std::list<STriangle2D*>& GetTriangles() const;
+        const std::list
+            <STriangle2D*>&     GetTriangles() const;
 
         static float            GetDepthStep();
 
     private:
+        void                    CentrateOrigin();
+        bool                    AddTriangle(STriangle2D* tr, STriangle2D* referal);
+        void                    AttachGroup(STriangle2D* tr2, int e2);
+        void                    BreakGroup(STriangle2D* tr2, int e2);
+        CIvoCommand*            GetJoinEdgeCmd(STriangle2D* tr, int e);
+        CIvoCommand*            GetBreakEdgeCmd(STriangle2D* tr, int e);
         void                    Serialize(FILE *f) const;
         void                    Deserialize(FILE *f);
         void                    Scale(float scale);
@@ -226,6 +257,7 @@ public:
         static float            ms_depthStep;
 
         friend class CMesh;
+        friend class CAtomicCommand;
     };
 };
 

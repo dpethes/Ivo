@@ -6,12 +6,12 @@
 #include <memory>
 #include <unordered_map>
 
-class CMesh;
 
 namespace Ui {
 class MainWindow;
 }
 
+class CMesh;
 class CRenWin3D;
 class CRenWin2D;
 
@@ -52,23 +52,27 @@ private slots:
     void on_actionShow_Grid_triggered(bool checked);
     void on_actionToggle_Lighting_triggered(bool checked);
     void on_actionPolypaint_triggered();
+
+private slots:
+    void UpdateView();
     
 private:
     void closeEvent(QCloseEvent *event) override;
     void ClearModel();
-    void UpdateView();
     void AskToSaveChanges();
     void SaveToIVO(const char* filename);
     void LoadFromIVO(const char* filename);
     void LoadFromPDOv2_0(const char* filename);
 
-    Ui::MainWindow*                             ui;
-    CMesh*                                      m_model;
-    CRenWin3D*                                  m_rw3;
-    CRenWin2D*                                  m_rw2;
-    std::string                                 m_openedModel = "";
-    std::unordered_map<unsigned, std::string>   m_textures;
-    std::unordered_map<unsigned, std::unique_ptr<QImage>> m_textureImages;
+    Ui::MainWindow*                         ui;
+    CMesh*                                  m_model;
+    CRenWin3D*                              m_rw3;
+    CRenWin2D*                              m_rw2;
+    std::string                             m_openedModel = "";
+    std::unordered_map
+        <unsigned, std::string>             m_textures;
+    std::unordered_map
+        <unsigned, std::unique_ptr<QImage>> m_textureImages;
 };
 
 #endif // MAINWINDOW_H

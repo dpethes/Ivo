@@ -28,6 +28,13 @@ CRenWin2D::~CRenWin2D()
     doneCurrent();
 }
 
+void CRenWin2D::ClearSelection()
+{
+    m_currGroup = nullptr;
+    m_currSheet = nullptr;
+    update();
+}
+
 void CRenWin2D::SetMode(EditMode m)
 {
     if(m_cameraMode == CAM_MODE)
@@ -339,8 +346,8 @@ void CRenWin2D::ModeLMB()
             CMesh::STriangle2D *trUnderCursor = nullptr;
             m_model->GetStuffUnderCursor(mouseWorldCoords, trUnderCursor, m_currEdge);
 
-            const CMesh::STriGroup *tGroup = m_model->GroupUnderCursor(mouseWorldCoords);
-            m_currGroup = static_cast<void*>(const_cast<CMesh::STriGroup*>(tGroup));
+            CMesh::STriGroup *tGroup = m_model->GroupUnderCursor(mouseWorldCoords);
+            m_currGroup = static_cast<void*>(tGroup);
             if(!tGroup)
             {
                 m_cameraMode = CAM_STILL;
@@ -359,8 +366,8 @@ void CRenWin2D::ModeLMB()
         }
         case EM_MOVE :
         {
-            const CMesh::STriGroup *tGroup = m_model->GroupUnderCursor(mouseWorldCoords);
-            m_currGroup = static_cast<void*>(const_cast<CMesh::STriGroup*>(tGroup));
+            CMesh::STriGroup *tGroup = m_model->GroupUnderCursor(mouseWorldCoords);
+            m_currGroup = static_cast<void*>(tGroup);
             if(!tGroup)
             {
                 m_cameraMode = CAM_STILL;
@@ -578,7 +585,7 @@ void CRenWin2D::ZoomFit()
           highestX = -99999999999999.0f,
           lowestX  = 99999999999999.0f;
 
-    const auto groups = m_model->GetGroups();
+    const std::list<CMesh::STriGroup>& groups = m_model->GetGroups();
     for(const CMesh::STriGroup& grp : groups)
     {
         const glm::vec2 grpPos = grp.GetPosition();

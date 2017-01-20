@@ -18,10 +18,13 @@
 #include "interface/materialmanager.h"
 #include "pdo/pdotools.h"
 
-extern QString g_GetSupported3DFormats();
+namespace Formats3D
+{
+extern QString GetSupported3DFormats();
+}
 
-bool g_rw3IsValid = true;
-std::mutex g_rw3Mutex;
+static bool g_rw3IsValid = true;
+static std::mutex g_rw3Mutex;
 
 CMainWindow::CMainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -75,6 +78,9 @@ CMainWindow::CMainWindow(QWidget *parent) :
     connect(ui->actionLoad_Texture, SIGNAL(triggered()), this, SLOT(OpenMaterialManager()));
     connect(this, SIGNAL(UpdateTexture(const QImage*, unsigned)), m_rw3, SLOT(LoadTexture(const QImage*, unsigned)));
     connect(this, SIGNAL(UpdateTexture(const QImage*, unsigned)), m_rw2, SLOT(LoadTexture(const QImage*, unsigned)));
+    connect(m_rw3, SIGNAL(RequestFullRedraw()), m_rw2, SLOT(ClearSelection()));
+    connect(m_rw3, SIGNAL(RequestFullRedraw()), this, SLOT(UpdateView()));
+    connect(m_rw2, SIGNAL(RequestFullRedraw()), this, SLOT(UpdateView()));
 }
 
 CMainWindow::~CMainWindow()
@@ -143,7 +149,7 @@ void CMainWindow::LoadModel()
     std::string modelPath = QFileDialog::getOpenFileName(this,
                                                          "Open Model",
                                                          "",
-                                                         g_GetSupported3DFormats()).toStdString();
+                                                         Formats3D::GetSupported3DFormats()).toStdString();
     if(modelPath.empty())
         return;
 
@@ -235,11 +241,13 @@ void CMainWindow::on_actionExport_Sheets_triggered()
 
 void CMainWindow::on_actionSettings_triggered()
 {
+    m_rw3->releaseKeyboard();
     CSettingsWindow sw(this);
     sw.LoadSettings();
     sw.exec();
     m_rw2->UpdateSheetsSize();
     UpdateView();
+    m_rw3->grabKeyboard();
 }
 
 void CMainWindow::on_actionZoom_fit_triggered()
@@ -263,6 +271,7 @@ void CMainWindow::on_actionUndo_triggered()
     if(m_model)
     {
         m_model->Undo();
+        m_rw2->ClearSelection();
         UpdateView();
     }
 }
@@ -272,6 +281,7 @@ void CMainWindow::on_actionRedo_triggered()
     if(m_model)
     {
         m_model->Redo();
+        m_rw2->ClearSelection();
         UpdateView();
     }
 }
@@ -337,7 +347,7 @@ void CMainWindow::on_actionLoad_Model_triggered()
         {
             LoadFromIVO(ivoModelPath.c_str());
         } else {
-            switch(GetVersionPDO(ivoModelPath.c_str()))
+            switch(PdoTools::GetVersionPDO(ivoModelPath.c_str()))
             {
             case 20:
                 LoadFromPDOv2_0(ivoModelPath.c_str());
@@ -362,6 +372,7 @@ void CMainWindow::on_actionScale_triggered()
 {
     if(m_model)
     {
+        m_rw3->releaseKeyboard();
         float outScale = 1.0f;
 
         CScaleWindow scaleWnd(this);
@@ -374,6 +385,7 @@ void CMainWindow::on_actionScale_triggered()
             m_model->Scale(outScale);
         }
         UpdateView();
+        m_rw3->grabKeyboard();
     }
 }
 
@@ -389,6 +401,7 @@ void CMainWindow::on_actionAutoPack_triggered()
     if(m_model)
     {
         m_model->PackGroups();
+        m_rw2->ZoomFit();
         UpdateView();
     }
 }
